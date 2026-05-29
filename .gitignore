@@ -1,0 +1,7 @@
+build-ios
+build-osx
+*.app
+*.dylib
+*.exe
+*.o
+*.pch
