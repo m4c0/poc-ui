@@ -9,8 +9,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define OPT "-gdwarf"
-//#define OPT "-O3"
+//#define OPT "-gdwarf"
+#define OPT "-O3"
 
 static void usage() {
   fprintf(stderr, "just call 'build' without arguments\n");
@@ -70,7 +70,16 @@ static int link_hello() {
   char * args[] = {
     "clang", "-Wall", OPT,
     "microui.o", "hello.o", "hello-win.o", "volk.o",
-    "-o", "app/hello.exe", "-lole32", "-luser32",
+    "-o", "app/hello.exe", "-luser32",
+    0 };
+  return run(args);
+}
+
+static int link_gdi() {
+  char * args[] = {
+    "clang", "-Wall", OPT,
+    "microui.o", "gdi.o",
+    "-o", "app/gdi.exe", "-lgdi32", "-luser32",
     0 };
   return run(args);
 }
@@ -104,6 +113,9 @@ int main(int argc, char ** argv) {
   if (cc("hello.c", "hello.o")) return 1;
   if (cc("hello-win.c", "hello-win.o")) return 1;
   if (link_hello()) return 1;
+
+  if (cc("gdi.c", "gdi.o")) return 1;
+  if (link_gdi()) return 1;
 
   return 0;
 }
