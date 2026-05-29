@@ -1,23 +1,40 @@
 #include "microui.h"
 
 static mu_Context ctx = {0};
-static HDC hdc;
+static HDC hdc_f, hdc_b;
+static HBITMAP hbmp_b;
+
+static void deinit_hdcs(HWND hwnd) {
+  ReleaseDC(hwnd, hdc_f);
+  DeleteDC(hdc_b);
+  DeleteObject(hbmp_b);
+}
+static void init_hdcs(HWND hwnd) {
+  deinit_hdcs(hwnd);
+
+  hdc_f = GetDC(hwnd);
+  hdc_b = CreateCompatibleDC(hdc_f);
+  SetBkMode(hdc_b, TRANSPARENT);
+
+  RECT rect;
+  GetClientRect(hwnd, &rect);
+
+  hbmp_b = CreateCompatibleBitmap(hdc_f, rect.right - rect.left, rect.bottom - rect.top);
+  SelectObject(hdc_b, hbmp_b);
+}
 
 static int font_width(mu_Font f, const char * txt, int len) {
   RECT rect = {0};
-  DrawText(hdc, txt, len, &rect, DT_CALCRECT);
+  DrawText(hdc_f, txt, len, &rect, DT_CALCRECT);
   return rect.right - rect.left;
 }
 static int font_height(mu_Font f) {
   RECT rect = {0};
-  DrawText(hdc, "Lorem Ipsum", -1, &rect, DT_CALCRECT);
+  DrawText(hdc_f, "Lorem Ipsum", -1, &rect, DT_CALCRECT);
   return rect.bottom - rect.top;
 }
 
 static void repaint(HWND hwnd) {
-  hdc = GetDC(hwnd);
-  SetBkMode(hdc, TRANSPARENT);
-
   mu_begin(&ctx);
   if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
     if (mu_button(&ctx, "Le button")) {
@@ -31,7 +48,7 @@ static void repaint(HWND hwnd) {
   while (mu_next_command(&ctx, &cmd)) {
     switch (cmd->type) {
       case MU_COMMAND_TEXT: {
-        SetTextColor(hdc, RGB(
+        SetTextColor(hdc_b, RGB(
               cmd->text.color.r,
               cmd->text.color.g,
               cmd->text.color.b));
@@ -43,7 +60,7 @@ static void repaint(HWND hwnd) {
           .bottom = cmd->text.pos.y + 500,
         };
         UINT fmt = DT_TOP | DT_LEFT | DT_SINGLELINE;
-        DrawText(hdc, cmd->text.str, -1, &rect, fmt);
+        DrawText(hdc_b, cmd->text.str, -1, &rect, fmt);
         break;
       }
       case MU_COMMAND_CLIP: {
@@ -52,7 +69,7 @@ static void repaint(HWND hwnd) {
             cmd->clip.rect.y,
             cmd->clip.rect.x + cmd->clip.rect.w,
             cmd->clip.rect.y + cmd->clip.rect.h);
-        SelectClipRgn(hdc, hrgn);
+        SelectClipRgn(hdc_b, hrgn);
         DeleteObject(hrgn);
         break;
       }
@@ -67,7 +84,7 @@ static void repaint(HWND hwnd) {
               cmd->rect.color.r,
               cmd->rect.color.g,
               cmd->rect.color.b));
-        FillRect(hdc, &rect, bru);
+        FillRect(hdc_b, &rect, bru);
         DeleteObject(bru);
         break;
       }
@@ -77,12 +94,18 @@ static void repaint(HWND hwnd) {
     }
   }
 
-  ReleaseDC(hwnd, hdc);
-  hdc = NULL;
+  RECT rect;
+  GetClientRect(hwnd, &rect);
+  BitBlt(hdc_f, 0, 0, rect.right - rect.left, rect.bottom - rect.top, hdc_b, 0, 0, SRCCOPY);
 }
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   switch (msg) {
+    case WM_CREATE:
+    case WM_SIZE:
+      init_hdcs(hwnd);
+      break;
+
     case WM_CLOSE:
       // Required to enable another thread sending "plz exit" messages
       DestroyWindow(hwnd);
@@ -112,7 +135,7 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       return 0;
     case WM_MOUSEMOVE:
       mu_input_mousemove(&ctx, GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param));
-      repaint(hwnd);
+      InvalidateRect(hwnd, NULL, 0);
       return 0;
   }
   return DefWindowProc(hwnd, msg, w_param, l_param);
