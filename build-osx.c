@@ -71,10 +71,9 @@ static int link_hello() {
   char * args[] = {
     "clang", "-Wall",
     "-framework", "AppKit",
-    "-framework", "AudioToolbox",
     "-framework", "MetalKit",
     "-o", "poc-ui.app/Contents/MacOS/hello", 
-    "hello.o", "hello-osx.o", "volk.o",
+    "hello.o", "hello-osx.o", "microui.o", "volk.o",
     0 };
   return run(args);
 }
@@ -101,10 +100,12 @@ int main(int argc, char ** argv) {
   if (argc != 1) return (usage(), 1);
 
   if (pch()) return 1;
+  if (app("poc-ui")) return 1;
 
   if (hdr("volk.h", "volk.o", "VOLK_IMPLEMENTATION")) return 1;
 
-  if (app("poc-ui")) return 1;
+  if (cc("microui.c", "microui.o")) return 1;
+
   if (cc("hello.c", "hello.o")) return 1;
   if (cm("hello-osx.m", "hello-osx.o")) return 1;
   if (link_hello()) return 1;
