@@ -20,17 +20,37 @@ static void repaint(HWND hwnd) {
   mu_end(&ctx);
 
   HDC hdc = GetDC(hwnd);
+  SetBkMode(hdc, TRANSPARENT);
 
-  puts(">>>>>>>>> frame");
   mu_Command * cmd = NULL;
   while (mu_next_command(&ctx, &cmd)) {
     switch (cmd->type) {
-      case MU_COMMAND_TEXT:
-        puts("text");
+      case MU_COMMAND_TEXT: {
+        SetTextColor(hdc, RGB(
+              cmd->text.color.r,
+              cmd->text.color.g,
+              cmd->text.color.b));
+
+        RECT rect = {
+          .left  = cmd->text.pos.x,
+          .top   = cmd->text.pos.y,
+          .right  = cmd->text.pos.x + 500,
+          .bottom = cmd->text.pos.y + 500,
+        };
+        UINT fmt = DT_TOP | DT_LEFT | DT_SINGLELINE;
+        DrawText(hdc, cmd->text.str, -1, &rect, fmt);
         break;
-      case MU_COMMAND_CLIP:
-        puts("clip");
+      }
+      case MU_COMMAND_CLIP: {
+        HRGN hrgn = CreateRectRgn(
+            cmd->clip.rect.x,
+            cmd->clip.rect.y,
+            cmd->clip.rect.x + cmd->clip.rect.w,
+            cmd->clip.rect.y + cmd->clip.rect.h);
+        SelectClipRgn(hdc, hrgn);
+        DeleteObject(hrgn);
         break;
+      }
       case MU_COMMAND_RECT: {
         RECT rect = {
           .left   = cmd->rect.rect.x,
