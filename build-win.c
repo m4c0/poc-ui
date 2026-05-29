@@ -65,8 +65,8 @@ static int hdr(char * src, char * o, char * d) {
 static int link_hello() {
   char * args[] = {
     "clang", "-Wall", OPT,
-    "microui.o", "hello.o", "hello-win.o",
-    "-o", "app/sokoban.exe", "-lole32", "-luser32",
+    "microui.o", "hello.o", "hello-win.o", "volk.o",
+    "-o", "app/hello.exe", "-lole32", "-luser32",
     0 };
   return run(args);
 }
