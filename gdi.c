@@ -25,12 +25,12 @@ static void init_hdcs(HWND hwnd) {
 
 static int font_width(mu_Font f, const char * txt, int len) {
   RECT rect = {0};
-  DrawText(hdc_f, txt, len, &rect, DT_CALCRECT);
+  DrawText(hdc_b, txt, len, &rect, DT_CALCRECT);
   return rect.right - rect.left;
 }
 static int font_height(mu_Font f) {
   RECT rect = {0};
-  DrawText(hdc_f, "Lorem Ipsum", -1, &rect, DT_CALCRECT);
+  DrawText(hdc_b, "Lorem Ipsum", -1, &rect, DT_CALCRECT);
   return rect.bottom - rect.top;
 }
 
@@ -42,8 +42,17 @@ static void repaint(HWND hwnd) {
   FillRect(hdc_b, &rect, bru);
   DeleteObject(bru);
 
+  HFONT fnt = CreateFont(
+      32, 0, 0, 0,
+      FW_DONTCARE, FALSE, FALSE, FALSE,
+      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+      DEFAULT_QUALITY, DEFAULT_PITCH,
+      "Impact");
+  SelectObject(hdc_b, fnt);
+
   mu_begin(&ctx);
-  if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
+  int opt = MU_OPT_NOCLOSE;
+  if (mu_begin_window_ex(&ctx, "Window", mu_rect(10, 10, 300, 400), opt)) {
     if (mu_button(&ctx, "Le button")) {
       mu_open_popup(&ctx, "popup");
     }
@@ -107,6 +116,8 @@ static void repaint(HWND hwnd) {
   }
 
   BitBlt(hdc_f, 0, 0, rect.right - rect.left, rect.bottom - rect.top, hdc_b, 0, 0, SRCCOPY);
+
+  DeleteObject(fnt);
 }
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
