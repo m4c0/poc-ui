@@ -147,6 +147,14 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       mu_input_mousemove(&ctx, GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param));
       InvalidateRect(hwnd, NULL, 0);
       return 0;
+    case WM_LBUTTONDOWN:
+      mu_input_mousedown(&ctx, GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param), 1 << 0);
+      InvalidateRect(hwnd, NULL, 0);
+      return 0;
+    case WM_LBUTTONUP:
+      mu_input_mouseup(&ctx, GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param), 1 << 0);
+      InvalidateRect(hwnd, NULL, 0);
+      return 0;
   }
   return DefWindowProc(hwnd, msg, w_param, l_param);
 }
