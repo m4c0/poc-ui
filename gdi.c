@@ -110,6 +110,10 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       repaint(hwnd);
       ValidateRect(hwnd, NULL);
       return 0;
+    case WM_MOUSEMOVE:
+      mu_input_mousemove(&ctx, GET_X_LPARAM(l_param), GET_Y_LPARAM(l_param));
+      repaint(hwnd);
+      return 0;
   }
   return DefWindowProc(hwnd, msg, w_param, l_param);
 }
