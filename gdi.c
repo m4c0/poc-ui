@@ -1,15 +1,23 @@
 #include "microui.h"
 
 static mu_Context ctx = {0};
+static HDC hdc;
 
 static int font_width(mu_Font f, const char * txt, int len) {
-  return 8 * len;
+  RECT rect = {0};
+  DrawText(hdc, txt, len, &rect, DT_CALCRECT);
+  return rect.right - rect.left;
 }
 static int font_height(mu_Font f) {
-  return 8;
+  RECT rect = {0};
+  DrawText(hdc, "Lorem Ipsum", -1, &rect, DT_CALCRECT);
+  return rect.bottom - rect.top;
 }
 
 static void repaint(HWND hwnd) {
+  hdc = GetDC(hwnd);
+  SetBkMode(hdc, TRANSPARENT);
+
   mu_begin(&ctx);
   if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
     if (mu_button(&ctx, "Le button")) {
@@ -18,9 +26,6 @@ static void repaint(HWND hwnd) {
     mu_end_window(&ctx);
   }
   mu_end(&ctx);
-
-  HDC hdc = GetDC(hwnd);
-  SetBkMode(hdc, TRANSPARENT);
 
   mu_Command * cmd = NULL;
   while (mu_next_command(&ctx, &cmd)) {
@@ -73,6 +78,7 @@ static void repaint(HWND hwnd) {
   }
 
   ReleaseDC(hwnd, hdc);
+  hdc = NULL;
 }
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
