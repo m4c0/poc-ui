@@ -1,9 +1,13 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <sys/stat.h>
 #include <assert.h>
 #include <direct.h>
 #include <process.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #define OPT "-gdwarf"
 //#define OPT "-O3"
@@ -71,12 +75,27 @@ static int link_hello() {
   return run(args);
 }
 
+static int atlas() {
+  int w, h, c;
+  stbi_uc * img = stbi_load("monogram-bitmap.png", &w, &h, &c, 1);
+  assert(w == 96);
+  assert(h == 96);
+
+  FILE * f = fopen("app/atlas.img", "wb");
+  assert(f);
+  assert(1 == fwrite(img, w * h, 1, f));
+  fclose(f);
+
+  return 0;
+}
+
 int main(int argc, char ** argv) {
   if (argc != 1) return (usage(), 1);
 
   _mkdir("app");
 
   if (pch()) return 1;
+  if (atlas()) return 1;
 
   if (hdr("volk.h", "volk.o", "VOLK_IMPLEMENTATION")) return 1;
 
