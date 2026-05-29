@@ -41,6 +41,12 @@ static int pch() {
   return run(args);
 }
 
+static int cc_nopch(char * src, char * o) {
+  char * args[] = {
+    "clang", "-Wall", OPT, "-o", o, "-c", src, 0 };
+  return run(args);
+}
+
 static int cc(char * src, char * o) {
   char * args[] = {
     "clang", "-Wall", OPT, "-include-pch", "pch.pch",
@@ -74,10 +80,10 @@ int main(int argc, char ** argv) {
 
   if (hdr("volk.h", "volk.o", "VOLK_IMPLEMENTATION")) return 1;
 
-  if (cc("microui.c", "microui.o")) return 1;
+  if (cc_nopch("microui.c", "microui.o")) return 1;
 
   if (cc("hello.c", "hello.o")) return 1;
-  if (cc("hello-win.m", "hello-win.o")) return 1;
+  if (cc("hello-win.c", "hello-win.o")) return 1;
   if (link_hello()) return 1;
 
   return 0;
