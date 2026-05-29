@@ -1,6 +1,10 @@
 #import <AppKit/AppKit.h>
 #import <CoreFoundation/CoreFoundation.h>
 
+#include "microui.h"
+
+static mu_Context ctx = {0};
+
 @interface POCView : NSView
 @end
 @implementation POCView
@@ -23,6 +27,36 @@
   }
 }
 - (void) drawRect:(NSRect)dirtyRect {
+  mu_begin(&ctx);
+  int opt = MU_OPT_NOCLOSE;
+  if (mu_begin_window_ex(&ctx, "Window", mu_rect(10, 10, 300, 400), opt)) {
+    if (mu_button(&ctx, "Le button")) {
+      mu_open_popup(&ctx, "popup");
+    }
+    if (mu_begin_popup(&ctx, "popup")) {
+      mu_label(&ctx, "Le popup");
+      mu_end_popup(&ctx);
+    }
+
+    mu_end_window(&ctx);
+  }
+  mu_end(&ctx);
+
+  mu_Command * cmd = NULL;
+  while (mu_next_command(&ctx, &cmd)) {
+    switch (cmd->type) {
+      case MU_COMMAND_TEXT: {
+        break;
+      }
+      case MU_COMMAND_CLIP: {
+        break;
+      }
+      case MU_COMMAND_RECT: {
+        break;
+      }
+      case MU_COMMAND_ICON: break;
+    }
+  }
 }
 @end
 
@@ -69,7 +103,18 @@ static void run() {
   [a run];
 }
 
+static int font_width(mu_Font f, const char * txt, int len) {
+  return 0;
+}
+static int font_height(mu_Font f) {
+  return 0;
+}
+
 int main() {
+  mu_init(&ctx);
+  ctx.text_width  = &font_width;
+  ctx.text_height = &font_height;
+
   @autoreleasepool {
     run();
   }
