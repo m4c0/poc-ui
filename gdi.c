@@ -45,8 +45,13 @@ static void repaint(HWND hwnd) {
   mu_begin(&ctx);
   if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
     if (mu_button(&ctx, "Le button")) {
-      puts("button");
+      mu_open_popup(&ctx, "popup");
     }
+    if (mu_begin_popup(&ctx, "popup")) {
+      mu_label(&ctx, "Le popup");
+      mu_end_popup(&ctx);
+    }
+
     mu_end_window(&ctx);
   }
   mu_end(&ctx);
