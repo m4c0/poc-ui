@@ -21,6 +21,10 @@ static VkSurfaceKHR       vlk_surf;
 static unsigned           vlk_qf;
 static unsigned           vlk_swc_count;
 
+static VkDeviceMemory vlk_atlas_mem;
+static VkImage        vlk_atlas_img;
+static VkImageView    vlk_atlas_iv;
+
 #define MAX_SWAPCHAIN_IMAGES 8
 typedef struct vlk_swc {
   VkFramebuffer   fb  [MAX_SWAPCHAIN_IMAGES];
@@ -39,14 +43,6 @@ static VkFence     vlk_fence        [MAX_INFLIGHTS];
 static VkSemaphore vlk_sema_img     [MAX_INFLIGHTS];
 static VkSemaphore vlk_sema_present [MAX_INFLIGHTS];
 static unsigned    vlk_cur_inflight;
-
-typedef struct vlk_img {
-  VkBuffer       h_buf;
-  VkDeviceMemory h_mem;
-  VkDeviceMemory mem;
-  VkImage        img;
-  VkImageView    iv;
-} vlk_img_t;
 
 void vlk_fail(int r, const char * msg);
 static void vlk_check(VkResult r, const char * msg) {
@@ -371,6 +367,181 @@ static void vlk_create_fences() {
   }
 }
 
+static int vlk_find_memory(VkMemoryPropertyFlags desired) {
+  VkPhysicalDeviceMemoryProperties props;
+  vkGetPhysicalDeviceMemoryProperties(vlk_pd, &props);
+
+  for (int i = 0; i < props.memoryTypeCount; i++) {
+    VkMemoryPropertyFlags flags = props.memoryTypes[i].propertyFlags;
+    if ((flags & desired) == desired) return i;
+  }
+  assert(0 && "could not find suitable vulkan memory");
+  return -1; // unreachable
+}
+static int vlk_find_host_memory() {
+  return vlk_find_memory(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+}
+static int vlk_find_local_memory() {
+  return vlk_find_memory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+}
+
+static VkDeviceMemory vlk_allocate_memory(VkDeviceSize sz, int idx) {
+  VkMemoryAllocateInfo mem_info = {
+    .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+    .allocationSize  = sz,
+    .memoryTypeIndex = idx,
+  };
+  VkDeviceMemory mem;
+  _(vkAllocateMemory(vlk_dev, &mem_info, NULL, &mem));
+  return mem;
+}
+
+static VkImage vlk_create_image(unsigned w, unsigned h, VkFormat fmt, VkImageUsageFlagBits flags) {
+  VkImageCreateInfo img_info = {
+    .sType       = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    .imageType   = VK_IMAGE_TYPE_2D,
+    .extent      = (VkExtent3D) { w, h, 1 },
+    .usage       = VK_IMAGE_USAGE_SAMPLED_BIT | flags,
+    .samples     = VK_SAMPLE_COUNT_1_BIT,
+    .format      = fmt,
+    .mipLevels   = 1,
+    .arrayLayers = 1,
+  };
+  VkImage img;
+  _(vkCreateImage(vlk_dev, &img_info, NULL, &img));
+  return img;
+}
+static VkDeviceMemory vlk_allocate_image_memory(VkImage img) {
+  VkMemoryRequirements req;
+  vkGetImageMemoryRequirements(vlk_dev, img, &req);
+
+  VkDeviceMemory mem = vlk_allocate_memory(req.size, vlk_find_local_memory());
+  _(vkBindImageMemory(vlk_dev, img, mem, 0));
+  return mem;
+}
+static VkImageView vlk_create_image_view(VkImage img, VkFormat fmt) {
+  VkImageViewCreateInfo iv_info = {
+    .sType        = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+    .image        = img,
+    .format       = fmt,
+    .viewType     = VK_IMAGE_VIEW_TYPE_2D,
+    .subresourceRange = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .levelCount = 1,
+      .layerCount = 1,
+    },
+  };
+  VkImageView iv;
+  _(vkCreateImageView(vlk_dev, &iv_info, NULL, &iv));
+  return iv;
+}
+
+static VkBuffer vlk_create_buffer_for_image(unsigned sz) {
+  VkBufferCreateInfo buf_info = {
+    .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+    .size  = sz,
+    .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  };
+  VkBuffer buf;
+  _(vkCreateBuffer(vlk_dev, &buf_info, NULL, &buf));
+  return buf;
+}
+
+static void vlk_copy_buf2img(VkBuffer buf, VkImage img, int w, int h) {
+  VkCommandBuffer cb;
+  vlk_allocate_command_buffers(1, &cb);
+
+  VkCommandBufferBeginInfo binfo = {
+    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    .flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
+  };
+  vkBeginCommandBuffer(cb, &binfo);
+
+  VkDependencyInfoKHR di = {
+    .sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+    .bufferMemoryBarrierCount = 1,
+    .pBufferMemoryBarriers    = (VkBufferMemoryBarrier2KHR[]) {{
+      .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2_KHR,
+      .srcStageMask  = VK_PIPELINE_STAGE_HOST_BIT,
+      .dstStageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT,
+      .srcAccessMask = VK_ACCESS_HOST_WRITE_BIT,
+      .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+      .buffer        = buf,
+      .size          = VK_WHOLE_SIZE,
+    }},
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers    = (VkImageMemoryBarrier2KHR[]) {{
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+      .srcStageMask     = VK_PIPELINE_STAGE_HOST_BIT,
+      .dstStageMask     = VK_PIPELINE_STAGE_TRANSFER_BIT,
+      .dstAccessMask    = VK_ACCESS_TRANSFER_WRITE_BIT,
+      .newLayout        = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      .image            = img,
+      .subresourceRange = {
+        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+        .levelCount     = 1,
+        .layerCount     = 1,
+      },
+    }},
+  };
+  vkCmdPipelineBarrier2KHR(cb, &di);
+
+  VkBufferImageCopy bic = {
+    .imageExtent = (VkExtent3D) { w, h, 1 },
+    .imageSubresource = {
+      .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+      .layerCount     = 1,
+    },
+  };
+  vkCmdCopyBufferToImage(cb, buf, img, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bic);
+
+  di = (VkDependencyInfoKHR) {
+    .sType                   = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+    .imageMemoryBarrierCount = 1,
+    .pImageMemoryBarriers    = (VkImageMemoryBarrier2KHR[]) {{
+      .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+      .srcStageMask     = VK_PIPELINE_STAGE_TRANSFER_BIT,
+      .dstStageMask     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+      .srcAccessMask    = VK_ACCESS_TRANSFER_WRITE_BIT,
+      .dstAccessMask    = VK_ACCESS_SHADER_READ_BIT,
+      .oldLayout        = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+      .newLayout        = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+      .image            = img,
+      .subresourceRange = {
+        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+        .levelCount     = 1,
+        .layerCount     = 1,
+      },
+    }},
+  };
+  vkCmdPipelineBarrier2KHR(cb, &di);
+
+  vkEndCommandBuffer(cb);
+
+  VkSubmitInfo submit = {
+    .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+    .pCommandBuffers    = &cb,
+    .commandBufferCount = 1,
+  };
+  _(vkQueueSubmit(vlk_q, 1, &submit, NULL));
+}
+
+static void vlk_load_atlas() {
+  vlk_atlas_img = vlk_create_image(96, 96, VK_FORMAT_R8_UNORM, 0);
+  vlk_atlas_mem = vlk_allocate_image_memory(vlk_atlas_img);
+  vlk_atlas_iv  = vlk_create_image_view(vlk_atlas_img, VK_FORMAT_R8_UNORM);
+
+  VkBuffer buf = vlk_create_buffer_for_image(96 * 96);
+  VkDeviceMemory mem = vlk_allocate_memory(96 * 96, vlk_find_host_memory());
+  _(vkBindBufferMemory(vlk_dev, buf, mem, 0));
+
+  vlk_copy_buf2img(buf, vlk_atlas_img, 96, 96);
+
+  vkDeviceWaitIdle(vlk_dev);
+  vkDestroyBuffer(vlk_dev, buf, NULL);
+  vkFreeMemory(vlk_dev, mem, NULL);
+}
+
 static void vlk_create() {
 #if !TARGET_OS_IPHONE
   _(volkInitialize());
@@ -388,6 +559,8 @@ static void vlk_create() {
   vlk_allocate_command_buffers(vlk_swc_count, vlk_cb);
 
   vlk_create_render_pass();
+
+  vlk_load_atlas();
 }
 
 static void vlk_destroy() {
@@ -399,6 +572,10 @@ static void vlk_destroy() {
     vkDestroySemaphore(vlk_dev, vlk_sema_img    [i], NULL);
     vkDestroySemaphore(vlk_dev, vlk_sema_present[i], NULL);
   }
+
+  vkDestroyImageView(vlk_dev, vlk_atlas_iv,  NULL);
+  vkDestroyImage    (vlk_dev, vlk_atlas_img, NULL);
+  vkFreeMemory      (vlk_dev, vlk_atlas_mem, NULL);
 
   vkDestroyCommandPool(vlk_dev, vlk_cpool, NULL);
   vkDestroyRenderPass(vlk_dev, vlk_rp, NULL);
