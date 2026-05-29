@@ -36,6 +36,26 @@ void app_frame() {
     mu_end_window(&ctx);
   }
   mu_end(&ctx);
+
+  puts(">>>>>>>>> frame");
+  mu_Command * cmd = NULL;
+  while (mu_next_command(&ctx, &cmd)) {
+    switch (cmd->type) {
+      case MU_COMMAND_TEXT:
+        puts("text");
+        break;
+      case MU_COMMAND_CLIP:
+        puts("clip");
+        break;
+      case MU_COMMAND_RECT:
+        puts("rect");
+        break;
+      case MU_COMMAND_ICON:
+        puts("icon");
+        break;
+    }
+
+  }
 }
 
 void vlk_record(VkCommandBuffer cb) {
