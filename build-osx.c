@@ -78,6 +78,16 @@ static int link_hello() {
   return run(args);
 }
 
+static int link_cocoa() {
+  char * args[] = {
+    "clang", "-Wall",
+    "-framework", "AppKit",
+    "-o", "poc-ui.app/Contents/MacOS/cocoa", 
+    "cocoa.o", "microui.o",
+    0 };
+  return run(args);
+}
+
 static void mkd(const char * n, const char * p) {
   char buf[1024];
   snprintf(buf, 1024, "%s.app/%s", n, p);
@@ -109,6 +119,9 @@ int main(int argc, char ** argv) {
   if (cc("hello.c", "hello.o")) return 1;
   if (cm("hello-osx.m", "hello-osx.o")) return 1;
   if (link_hello()) return 1;
+
+  if (cm("cocoa.m", "cocoa.o")) return 1;
+  if (link_cocoa()) return 1;
 
   return 0;
 }
