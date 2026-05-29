@@ -35,6 +35,13 @@ static int font_height(mu_Font f) {
 }
 
 static void repaint(HWND hwnd) {
+  RECT rect;
+  GetClientRect(hwnd, &rect);
+
+  HBRUSH bru = CreateSolidBrush(RGB(10, 12, 14));
+  FillRect(hdc_b, &rect, bru);
+  DeleteObject(bru);
+
   mu_begin(&ctx);
   if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
     if (mu_button(&ctx, "Le button")) {
@@ -94,8 +101,6 @@ static void repaint(HWND hwnd) {
     }
   }
 
-  RECT rect;
-  GetClientRect(hwnd, &rect);
   BitBlt(hdc_f, 0, 0, rect.right - rect.left, rect.bottom - rect.top, hdc_b, 0, 0, SRCCOPY);
 }
 
