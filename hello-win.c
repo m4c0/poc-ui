@@ -36,8 +36,32 @@ void vlk_fail(int r, const char * msg) {
   if (vlk_hwnd) SendNotifyMessage(vlk_hwnd, WM_CLOSE, 0, 0);
 }
 
+static HDC hdc;
+static HBITMAP hbmp;
+static void deinit_hdcs(HWND hwnd) {
+  ReleaseDC(hwnd, hdc);
+  DeleteDC(hdc);
+  DeleteObject(hbmp);
+}
+static void init_hdcs(HWND hwnd) {
+  deinit_hdcs(hwnd);
+
+  RECT rect; GetClientRect(hwnd, &rect);
+
+  hdc = CreateCompatibleDC(NULL);
+  hbmp = CreateCompatibleBitmap(hdc, rect.right - rect.left, rect.bottom - rect.top);
+  SelectObject(hdc, hbmp);
+
+  SetBkMode(hdc, TRANSPARENT);
+}
+
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
   switch (msg) {
+    case WM_CREATE:
+    case WM_SIZE:
+      init_hdcs(hwnd);
+      break;
+
     case WM_CLOSE:
       // Required to enable another thread sending "plz exit" messages
       DestroyWindow(hwnd);
@@ -71,11 +95,9 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       rect.bottom -= 100;
       rect.right  -= 100;
 
-      HDC hdc = GetDC(hwnd);
       HBRUSH bru = CreateSolidBrush(RGB(200, 12, 14));
       FillRect(hdc, &rect, bru);
       DeleteObject(bru);
-      ReleaseDC(hwnd, hdc);
       return 0;
     }
   }
