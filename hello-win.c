@@ -1,20 +1,6 @@
 #include "app.h"
 
 HWND vlk_hwnd;
-void * vlk_gui_ptr;
-void vlk_create_gui(unsigned w, unsigned h);
-void vlk_copy_gui(unsigned w, unsigned h);
-
-FILE * app_open(const char * name, const char * ext) {
-  char exe[MAX_PATH];
-  GetModuleFileName(NULL, exe, MAX_PATH);
-
-  char * p = strrchr(exe, '\\');
-  if (p) *p = 0;
-
-  char buf[MAX_PATH]; snprintf(buf, MAX_PATH, "%s\\%s.%s", exe, name, ext);
-  return fopen(buf, "rb");
-}
 
 FILE * vlk_open(const char * name, const char * ext) {
   char exe[MAX_PATH];
@@ -53,10 +39,6 @@ static void init_hdcs(HWND hwnd) {
   SelectObject(hdc, hbmp);
 
   SetBkMode(hdc, TRANSPARENT);
-
-  unsigned w = rect.right - rect.left;
-  unsigned h = rect.bottom - rect.top;
-  if (vlk_gui_ptr) vlk_create_gui(w, h);
 }
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
@@ -104,23 +86,20 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       FillRect(hdc, &r, bru);
       DeleteObject(bru);
 
-      unsigned w = rect.right - rect.left;
-      unsigned h = rect.bottom - rect.top;
-      BITMAPINFO bi = {
-        .bmiHeader = {
-          .biSize        = sizeof(BITMAPINFOHEADER),
-          .biWidth       = w,
-          .biHeight      = h,
-          .biPlanes      = 1,
-          .biBitCount    = 24,
-          .biCompression = BI_RGB,
-        },
-      };
-      GetDIBits(hdc, hbmp, 0, h, vlk_gui_ptr, &bi, DIB_RGB_COLORS);
+      // unsigned w = rect.right - rect.left;
+      // unsigned h = rect.bottom - rect.top;
+      // BITMAPINFO bi = {
+      //   .bmiHeader = {
+      //     .biSize        = sizeof(BITMAPINFOHEADER),
+      //     .biWidth       = w,
+      //     .biHeight      = h,
+      //     .biPlanes      = 1,
+      //     .biBitCount    = 24,
+      //     .biCompression = BI_RGB,
+      //   },
+      // };
+      // GetDIBits(hdc, hbmp, 0, h, vlk_gui_ptr, &bi, DIB_RGB_COLORS);
 
-      if (!vlk_gui_ptr) vlk_create_gui(w, h);
-
-      vlk_copy_gui(w, h);
       app_frame();
       return 0;
     }

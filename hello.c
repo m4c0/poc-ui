@@ -27,33 +27,4 @@ void app_deinit() {
 
 void app_frame() {
   vlk_frame();
-
-  mu_begin(&ctx);
-  if (mu_begin_window(&ctx, "Window", mu_rect(10, 10, 300, 400))) {
-    if (mu_button(&ctx, "Le button")) {
-      puts("button");
-    }
-    mu_end_window(&ctx);
-  }
-  mu_end(&ctx);
-
-  puts(">>>>>>>>> frame");
-  mu_Command * cmd = NULL;
-  while (mu_next_command(&ctx, &cmd)) {
-    switch (cmd->type) {
-      case MU_COMMAND_TEXT:
-        puts("text");
-        break;
-      case MU_COMMAND_CLIP:
-        puts("clip");
-        break;
-      case MU_COMMAND_RECT:
-        puts("rect");
-        break;
-      case MU_COMMAND_ICON:
-        puts("icon");
-        break;
-    }
-
-  }
 }

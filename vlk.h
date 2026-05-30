@@ -33,7 +33,7 @@ static VkDeviceMemory vlk_gui_mem;
 static VkImage        vlk_gui_img;
 static VkImageView    vlk_gui_iv;
 
-extern void * vlk_gui_ptr;
+void * vlk_gui_ptr;
 
 static VkDescriptorPool      vlk_dpool;
 static VkDescriptorSetLayout vlk_dsl;
@@ -553,27 +553,6 @@ static void vlk_load_atlas() {
   vlk_copy_buf2img(vlk_atlas_h_buf, vlk_atlas_img, 96, 96);
 }
 
-void vlk_create_gui(unsigned w, unsigned h) {
-  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
-  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
-  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
-
-  vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8_UINT, 0);
-  vlk_gui_mem = vlk_allocate_image_memory(vlk_gui_img);
-  vlk_gui_iv  = vlk_create_image_view(vlk_gui_img, VK_FORMAT_R8G8B8_UINT);
-
-  vlk_gui_h_buf = vlk_create_buffer_for_image(w * h * 3);
-  vlk_gui_h_mem = vlk_allocate_memory(w * h * 3, vlk_find_host_memory());
-  _(vkBindBufferMemory(vlk_dev, vlk_gui_h_buf, vlk_gui_h_mem, 0));
-
-  _(vkMapMemory(vlk_dev, vlk_gui_h_mem, 0, VK_WHOLE_SIZE, 0, &vlk_gui_ptr));
-}
-void vlk_copy_gui(unsigned w, unsigned h) {
-  vlk_copy_buf2img(vlk_gui_h_buf, vlk_gui_img, w, h);
-}
-
 static void vlk_create_dsl() {
   VkDescriptorSetLayoutCreateInfo dsl_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -709,6 +688,29 @@ static void vlk_create_pipeline() {
   vkDestroyShaderModule(vlk_dev, frag, NULL);
 }
 
+void vlk_create_gui(unsigned w, unsigned h) {
+  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
+  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
+  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
+
+  vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8_UNORM, 0);
+  vlk_gui_mem = vlk_allocate_image_memory(vlk_gui_img);
+  vlk_gui_iv  = vlk_create_image_view(vlk_gui_img, VK_FORMAT_R8G8B8_UNORM);
+
+  vlk_gui_h_buf = vlk_create_buffer_for_image(w * h * 3);
+  vlk_gui_h_mem = vlk_allocate_memory(w * h * 3, vlk_find_host_memory());
+  _(vkBindBufferMemory(vlk_dev, vlk_gui_h_buf, vlk_gui_h_mem, 0));
+
+  vlk_update_dsets();
+
+  _(vkMapMemory(vlk_dev, vlk_gui_h_mem, 0, VK_WHOLE_SIZE, 0, &vlk_gui_ptr));
+}
+void vlk_copy_gui(unsigned w, unsigned h) {
+  vlk_copy_buf2img(vlk_gui_h_buf, vlk_gui_img, w, h);
+}
+
 static void vlk_create() {
 #if !TARGET_OS_IPHONE
   _(volkInitialize());
@@ -735,7 +737,7 @@ static void vlk_create() {
   vlk_create_pipeline();
 
   vlk_load_atlas();
-  vlk_update_dsets();
+  vlk_create_gui(16, 16);
 }
 
 static void vlk_destroy() {
