@@ -656,12 +656,12 @@ void vlk_create_gui() {
   unsigned w = vlk_ext.width;
   unsigned h = vlk_ext.height;
 
-  vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8_UNORM, 0);
+  vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8A8_UNORM, 0);
   vlk_gui_mem = vlk_allocate_image_memory(vlk_gui_img);
-  vlk_gui_iv  = vlk_create_image_view(vlk_gui_img, VK_FORMAT_R8G8B8_UNORM);
+  vlk_gui_iv  = vlk_create_image_view(vlk_gui_img, VK_FORMAT_R8G8B8A8_UNORM);
 
-  vlk_gui_h_buf = vlk_create_buffer_for_image(w * h * 3);
-  vlk_gui_h_mem = vlk_allocate_memory(w * h * 3, vlk_find_host_memory());
+  vlk_gui_h_buf = vlk_create_buffer_for_image(w * h * 4);
+  vlk_gui_h_mem = vlk_allocate_memory(w * h * 4, vlk_find_host_memory());
   _(vkBindBufferMemory(vlk_dev, vlk_gui_h_buf, vlk_gui_h_mem, 0));
 
   vlk_update_dsets();

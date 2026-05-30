@@ -1,6 +1,7 @@
 #include "app.h"
 
 HWND vlk_hwnd;
+extern void * vlk_gui_ptr;
 
 FILE * vlk_open(const char * name, const char * ext) {
   char exe[MAX_PATH];
@@ -86,19 +87,19 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       FillRect(hdc, &r, bru);
       DeleteObject(bru);
 
-      // unsigned w = rect.right - rect.left;
-      // unsigned h = rect.bottom - rect.top;
-      // BITMAPINFO bi = {
-      //   .bmiHeader = {
-      //     .biSize        = sizeof(BITMAPINFOHEADER),
-      //     .biWidth       = w,
-      //     .biHeight      = h,
-      //     .biPlanes      = 1,
-      //     .biBitCount    = 24,
-      //     .biCompression = BI_RGB,
-      //   },
-      // };
-      // GetDIBits(hdc, hbmp, 0, h, vlk_gui_ptr, &bi, DIB_RGB_COLORS);
+      unsigned w = rect.right - rect.left;
+      unsigned h = rect.bottom - rect.top;
+      BITMAPINFO bi = {
+        .bmiHeader = {
+          .biSize        = sizeof(BITMAPINFOHEADER),
+          .biWidth       = w,
+          .biHeight      = h,
+          .biPlanes      = 1,
+          .biBitCount    = 32,
+          .biCompression = BI_RGB,
+        },
+      };
+      GetDIBits(hdc, hbmp, 0, h, vlk_gui_ptr, &bi, DIB_RGB_COLORS);
 
       app_frame();
       return 0;
