@@ -75,8 +75,8 @@ static void repaint(HWND hwnd) {
               cmd->text.color.b));
 
         RECT rect = {
-          .left  = cmd->text.pos.x,
-          .top   = cmd->text.pos.y,
+          .left   = cmd->text.pos.x,
+          .top    = cmd->text.pos.y,
           .right  = cmd->text.pos.x + 500,
           .bottom = cmd->text.pos.y + 500,
         };
