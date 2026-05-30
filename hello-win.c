@@ -62,9 +62,22 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
       }
 
       return 0;
-    case WM_PAINT:
+    case WM_PAINT: {
       if (vlk_hwnd) app_frame();
+
+      RECT rect; GetClientRect(hwnd, &rect);
+      rect.top    += 100;
+      rect.left   += 100;
+      rect.bottom -= 100;
+      rect.right  -= 100;
+
+      HDC hdc = GetDC(hwnd);
+      HBRUSH bru = CreateSolidBrush(RGB(200, 12, 14));
+      FillRect(hdc, &rect, bru);
+      DeleteObject(bru);
+      ReleaseDC(hwnd, hdc);
       return 0;
+    }
   }
   return DefWindowProc(hwnd, msg, w_param, l_param);
 }

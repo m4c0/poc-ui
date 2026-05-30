@@ -69,7 +69,7 @@ static int link_hello() {
   char * args[] = {
     "clang", "-Wall", OPT,
     "microui.o", "hello.o", "hello-win.o", "volk.o",
-    "-o", "app/hello.exe", "-luser32",
+    "-o", "app/hello.exe", "-lgdi32", "-luser32",
     0 };
   return run(args);
 }
