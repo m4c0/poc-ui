@@ -670,12 +670,9 @@ static void vlk_create_pipeline() {
   vkDestroyShaderModule(vlk_dev, frag, NULL);
 }
 
-void vlk_create_gui(unsigned w, unsigned h) {
-  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
-  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
-  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
+void vlk_create_gui() {
+  unsigned w = vlk_ext.width;
+  unsigned h = vlk_ext.height;
 
   vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8_UNORM, 0);
   vlk_gui_mem = vlk_allocate_image_memory(vlk_gui_img);
@@ -688,6 +685,13 @@ void vlk_create_gui(unsigned w, unsigned h) {
   vlk_update_dsets();
 
   _(vkMapMemory(vlk_dev, vlk_gui_h_mem, 0, VK_WHOLE_SIZE, 0, &vlk_gui_ptr));
+}
+void vlk_destroy_gui() {
+  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
+  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
+  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
 }
 void vlk_copy_gui(unsigned w, unsigned h) {
   vlk_copy_buf2img(vlk_gui_h_buf, vlk_gui_img, w, h);
@@ -717,12 +721,10 @@ static void vlk_create() {
   vlk_allocate_dset();
   vlk_create_pipeline_layout();
   vlk_create_pipeline();
-
-  vlk_load_atlas();
-  vlk_create_gui(16, 16);
 }
 
 static void vlk_destroy() {
+  vlk_destroy_gui();
   vlk_destroy_swc(&vlk_swc);
   vlk_destroy_swc(&vlk_swc_old);
 
@@ -731,12 +733,6 @@ static void vlk_destroy() {
     vkDestroySemaphore(vlk_dev, vlk_sema_img    [i], NULL);
     vkDestroySemaphore(vlk_dev, vlk_sema_present[i], NULL);
   }
-
-  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
-  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
-  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
-  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
 
   vkDestroyCommandPool(vlk_dev, vlk_cpool, NULL);
   vkDestroyRenderPass(vlk_dev, vlk_rp, NULL);
@@ -786,7 +782,10 @@ static void vlk_record_cmdbuf(int i) {
   vkEndCommandBuffer(cb);
 }
 void vlk_frame() {
-  if (!vlk_swc.swc) vlk_create_swc();
+  if (!vlk_swc.swc) {
+    vlk_create_swc();
+    vlk_create_gui();
+  }
 
   unsigned inf = vlk_cur_inflight;
 
@@ -832,6 +831,7 @@ void vlk_frame() {
     vlk_check(res, "vkQueuePresentKHR");
   } else {
     vlk_create_swc();
+    vlk_create_gui();
   }
 }
 
