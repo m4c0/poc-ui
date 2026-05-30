@@ -629,7 +629,7 @@ static void vlk_update_dsets() {
     .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
     .pImageInfo      = (VkDescriptorImageInfo[]) {{
       .sampler       = vlk_smp,
-      .imageView     = vlk_atlas_iv,
+      .imageView     = vlk_gui_iv,
       .imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     }},
   }};
