@@ -456,16 +456,7 @@ static VkBuffer vlk_create_buffer_for_image(unsigned sz) {
   return buf;
 }
 
-static void vlk_copy_buf2img(VkBuffer buf, VkImage img, int w, int h) {
-  VkCommandBuffer cb;
-  vlk_allocate_command_buffers(1, &cb);
-
-  VkCommandBufferBeginInfo binfo = {
-    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-    .flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
-  };
-  vkBeginCommandBuffer(cb, &binfo);
-
+static void vlk_cmd_copy_buf2img(VkCommandBuffer cb, VkBuffer buf, VkImage img, int w, int h) {
   VkDependencyInfoKHR di = {
     .sType                    = VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
     .bufferMemoryBarrierCount = 1,
@@ -524,15 +515,6 @@ static void vlk_copy_buf2img(VkBuffer buf, VkImage img, int w, int h) {
     }},
   };
   vkCmdPipelineBarrier2KHR(cb, &di);
-
-  vkEndCommandBuffer(cb);
-
-  VkSubmitInfo submit = {
-    .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-    .pCommandBuffers    = &cb,
-    .commandBufferCount = 1,
-  };
-  _(vkQueueSubmit(vlk_q, 1, &submit, NULL));
 }
 
 static void vlk_create_dsl() {
@@ -693,9 +675,6 @@ void vlk_destroy_gui() {
   vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
   vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
 }
-void vlk_copy_gui(unsigned w, unsigned h) {
-  vlk_copy_buf2img(vlk_gui_h_buf, vlk_gui_img, w, h);
-}
 
 static void vlk_create() {
 #if !TARGET_OS_IPHONE
@@ -749,6 +728,10 @@ static void vlk_record_cmdbuf(int i) {
     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
   };
   vkBeginCommandBuffer(cb, &binfo);
+
+  unsigned w = vlk_ext.width;
+  unsigned h = vlk_ext.height;
+  vlk_cmd_copy_buf2img(cb, vlk_gui_h_buf, vlk_gui_img, w, h);
 
   VkClearValue clear = {
     .color = {{ 0.1, 0.2, 0.3, 1 }},
