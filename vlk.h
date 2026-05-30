@@ -21,12 +21,6 @@ static VkSurfaceKHR       vlk_surf;
 static unsigned           vlk_qf;
 static unsigned           vlk_swc_count;
 
-static VkBuffer       vlk_atlas_h_buf;
-static VkDeviceMemory vlk_atlas_h_mem;
-static VkDeviceMemory vlk_atlas_mem;
-static VkImage        vlk_atlas_img;
-static VkImageView    vlk_atlas_iv;
-
 static VkBuffer       vlk_gui_h_buf;
 static VkDeviceMemory vlk_gui_h_mem;
 static VkDeviceMemory vlk_gui_mem;
@@ -541,18 +535,6 @@ static void vlk_copy_buf2img(VkBuffer buf, VkImage img, int w, int h) {
   _(vkQueueSubmit(vlk_q, 1, &submit, NULL));
 }
 
-static void vlk_load_atlas() {
-  vlk_atlas_img = vlk_create_image(96, 96, VK_FORMAT_R8_UNORM, 0);
-  vlk_atlas_mem = vlk_allocate_image_memory(vlk_atlas_img);
-  vlk_atlas_iv  = vlk_create_image_view(vlk_atlas_img, VK_FORMAT_R8_UNORM);
-
-  vlk_atlas_h_buf = vlk_create_buffer_for_image(96 * 96);
-  vlk_atlas_h_mem = vlk_allocate_memory(96 * 96, vlk_find_host_memory());
-  _(vkBindBufferMemory(vlk_dev, vlk_atlas_h_buf, vlk_atlas_h_mem, 0));
-
-  vlk_copy_buf2img(vlk_atlas_h_buf, vlk_atlas_img, 96, 96);
-}
-
 static void vlk_create_dsl() {
   VkDescriptorSetLayoutCreateInfo dsl_info = {
     .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -749,12 +731,6 @@ static void vlk_destroy() {
     vkDestroySemaphore(vlk_dev, vlk_sema_img    [i], NULL);
     vkDestroySemaphore(vlk_dev, vlk_sema_present[i], NULL);
   }
-
-  vkDestroyBuffer    (vlk_dev, vlk_atlas_h_buf, NULL);
-  vkFreeMemory       (vlk_dev, vlk_atlas_h_mem, NULL);
-  vkDestroyImageView (vlk_dev, vlk_atlas_iv,    NULL);
-  vkDestroyImage     (vlk_dev, vlk_atlas_img,   NULL);
-  vkFreeMemory       (vlk_dev, vlk_atlas_mem,   NULL);
 
   vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
   vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
