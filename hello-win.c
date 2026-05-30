@@ -13,6 +13,17 @@ FILE * app_open(const char * name, const char * ext) {
   return fopen(buf, "rb");
 }
 
+FILE * vlk_open(const char * name, const char * ext) {
+  char exe[MAX_PATH];
+  GetModuleFileName(NULL, exe, MAX_PATH);
+
+  char * p = strrchr(exe, '\\');
+  if (p) *p = 0;
+
+  char buf[MAX_PATH]; snprintf(buf, MAX_PATH, "%s\\%s.%s", exe, name, ext);
+  return fopen(buf, "rb");
+}
+
 static char vlk_log_buf[1024];
 void vlk_fail(int r, const char * msg) {
   snprintf(vlk_log_buf, 1024, "Vulkan call failed (code=%d): %s\n", r, msg);

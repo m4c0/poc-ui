@@ -25,6 +25,9 @@ static VkDeviceMemory vlk_atlas_mem;
 static VkImage        vlk_atlas_img;
 static VkImageView    vlk_atlas_iv;
 
+static VkPipelineLayout vlk_pl;
+static VkPipeline       vlk_ppl;
+
 #define MAX_SWAPCHAIN_IMAGES 8
 typedef struct vlk_swc {
   VkFramebuffer   fb  [MAX_SWAPCHAIN_IMAGES];
@@ -303,7 +306,6 @@ static void vlk_create_swc() {
   vlk_create_framebuffer();
 }
 
-#if 0
 FILE * vlk_open(const char * name, const char * ext);
 static VkShaderModule vlk_create_shader_module(const char * name) {
   FILE * f = vlk_open(name, "spv");
@@ -328,7 +330,6 @@ static VkShaderModule vlk_create_shader_module(const char * name) {
   free(data);
   return mod;
 }
-#endif
 
 static void vlk_create_command_pool() {
   VkCommandPoolCreateInfo info = {
@@ -542,6 +543,77 @@ static void vlk_load_atlas() {
   vkFreeMemory(vlk_dev, mem, NULL);
 }
 
+static void vlk_create_pipeline_layout() {
+  VkPipelineLayoutCreateInfo pl_info = {
+    .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+  };
+  _(vkCreatePipelineLayout(vlk_dev, &pl_info, NULL, &vlk_pl));
+}
+
+static void vlk_create_pipeline() {
+  VkShaderModule vert = vlk_create_shader_module("hello.vert");
+  VkShaderModule frag = vlk_create_shader_module("hello.frag");
+
+  VkGraphicsPipelineCreateInfo ppl_info = {
+    .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+    .stageCount = 2,
+    .pStages  = (VkPipelineShaderStageCreateInfo[]) {{
+      .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage  = VK_SHADER_STAGE_VERTEX_BIT,
+      .module = vert,
+      .pName  = "main",
+    }, {
+      .sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+      .stage  = VK_SHADER_STAGE_FRAGMENT_BIT,
+      .module = frag,
+      .pName  = "main",
+    }},
+    .pVertexInputState = (VkPipelineVertexInputStateCreateInfo[]) {{
+      .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    }},
+    .pInputAssemblyState = (VkPipelineInputAssemblyStateCreateInfo[]) {{
+      .sType    = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+      .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    }},
+    .pViewportState  = (VkPipelineViewportStateCreateInfo[]) {{
+      .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+      .viewportCount = 1,
+      .scissorCount  = 1,
+    }},
+    .pRasterizationState = (VkPipelineRasterizationStateCreateInfo[]) {{
+      .sType       = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+      .polygonMode = VK_POLYGON_MODE_FILL,
+      .lineWidth   = 1,
+    }},
+    .pMultisampleState = (VkPipelineMultisampleStateCreateInfo[]) {{
+      .sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+      .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+    }},
+    .pColorBlendState = (VkPipelineColorBlendStateCreateInfo[]) {{
+      .sType            = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+      .logicOp          = VK_LOGIC_OP_COPY,
+      .attachmentCount  = 1,
+      .pAttachments     = (VkPipelineColorBlendAttachmentState[]) {{
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT,
+      }},
+    }},
+    .pDynamicState = (VkPipelineDynamicStateCreateInfo[]) {{
+      .sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+      .dynamicStateCount = 2,
+      .pDynamicStates    = (VkDynamicState[]) {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+      },
+    }},
+    .layout     = vlk_pl,
+    .renderPass = vlk_rp,
+  };
+  _(vkCreateGraphicsPipelines(vlk_dev, NULL, 1, &ppl_info, NULL, &vlk_ppl));
+
+  vkDestroyShaderModule(vlk_dev, vert, NULL);
+  vkDestroyShaderModule(vlk_dev, frag, NULL);
+}
+
 static void vlk_create() {
 #if !TARGET_OS_IPHONE
   _(volkInitialize());
@@ -559,6 +631,9 @@ static void vlk_create() {
   vlk_allocate_command_buffers(vlk_swc_count, vlk_cb);
 
   vlk_create_render_pass();
+
+  vlk_create_pipeline_layout();
+  vlk_create_pipeline();
 
   vlk_load_atlas();
 }
@@ -585,7 +660,6 @@ static void vlk_destroy() {
   vkDestroyInstance(vlk_ins, NULL);
 }
 
-static void vlk_record(VkCommandBuffer cb);
 static void vlk_record_cmdbuf(int i) {
   VkCommandBuffer cb = vlk_cb[i];
 
@@ -618,7 +692,8 @@ static void vlk_record_cmdbuf(int i) {
   };
   vkCmdSetScissor(cb, 0, 1, &sci);
 
-  vlk_record(cb);
+  vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vlk_ppl);
+  vkCmdDraw(cb, 3, 1, 0, 0);
 
   vkCmdEndRenderPass(cb);
   vkEndCommandBuffer(cb);

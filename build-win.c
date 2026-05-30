@@ -29,9 +29,8 @@ static int run(char ** args) {
 
 static int shader(char * name) {
   char spv[1024]; snprintf(spv, 1024, "app/%s.spv", name);
-  char src[1024]; snprintf(src, 1024, "../%s", name);
 
-  char * args[] = { "glslang", "-V", src, "-o", spv, 0 };
+  char * args[] = { "glslang", "-V", name, "-o", spv, 0 };
   return run(args);
 }
 
@@ -116,6 +115,9 @@ int main(int argc, char ** argv) {
 
   if (cc("gdi.c", "gdi.o")) return 1;
   if (link_gdi()) return 1;
+
+  if (shader("hello.frag")) return 1;
+  if (shader("hello.vert")) return 1;
 
   return 0;
 }

@@ -57,6 +57,3 @@ void app_frame() {
 
   }
 }
-
-void vlk_record(VkCommandBuffer cb) {
-}
