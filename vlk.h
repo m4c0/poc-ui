@@ -25,8 +25,12 @@ static VkDeviceMemory vlk_atlas_mem;
 static VkImage        vlk_atlas_img;
 static VkImageView    vlk_atlas_iv;
 
-static VkPipelineLayout vlk_pl;
-static VkPipeline       vlk_ppl;
+static VkDescriptorPool      vlk_dpool;
+static VkDescriptorSetLayout vlk_dsl;
+static VkDescriptorSet       vlk_dset;
+static VkPipelineLayout      vlk_pl;
+static VkPipeline            vlk_ppl;
+static VkSampler             vlk_smp;
 
 #define MAX_SWAPCHAIN_IMAGES 8
 typedef struct vlk_swc {
@@ -543,9 +547,73 @@ static void vlk_load_atlas() {
   vkFreeMemory(vlk_dev, mem, NULL);
 }
 
+static void vlk_create_dsl() {
+  VkDescriptorSetLayoutCreateInfo dsl_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .bindingCount = 1,
+    .pBindings = (VkDescriptorSetLayoutBinding[]) {{
+      .binding = 0,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 1,
+      .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+    }},
+  };
+  _(vkCreateDescriptorSetLayout(vlk_dev, &dsl_info, NULL, &vlk_dsl));
+}
+
+static void vlk_create_dpool() {
+  VkDescriptorPoolCreateInfo dpool_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+    .maxSets = 1,
+    .poolSizeCount = 1,
+    .pPoolSizes = (VkDescriptorPoolSize[]) {{
+      .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .descriptorCount = 2,
+    }},
+  };
+  _(vkCreateDescriptorPool(vlk_dev, &dpool_info, NULL, &vlk_dpool));
+}
+
+static void vlk_allocate_dset() {
+  VkDescriptorSetAllocateInfo dset_info = {
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+    .descriptorPool = vlk_dpool,
+    .descriptorSetCount = 1,
+    .pSetLayouts = &vlk_dsl,
+  };
+  _(vkAllocateDescriptorSets(vlk_dev, &dset_info, &vlk_dset));
+}
+
+static void vlk_create_sampler() {
+  VkSamplerCreateInfo smp_info = {
+    .sType     = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+    .magFilter = VK_FILTER_NEAREST,
+    .minFilter = VK_FILTER_NEAREST,
+  };
+  _(vkCreateSampler(vlk_dev, &smp_info, NULL, &vlk_smp));
+}
+
+static void vlk_update_dsets() {
+  VkWriteDescriptorSet wds[] = {{
+    .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet          = vlk_dset,
+    .dstBinding      = 0,
+    .descriptorCount = 1,
+    .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    .pImageInfo      = (VkDescriptorImageInfo[]) {{
+      .sampler       = vlk_smp,
+      .imageView     = vlk_atlas_iv,
+      .imageLayout   = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    }},
+  }};
+  vkUpdateDescriptorSets(vlk_dev, 1, wds, 0, NULL);
+}
+
 static void vlk_create_pipeline_layout() {
   VkPipelineLayoutCreateInfo pl_info = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    .setLayoutCount = 1,
+    .pSetLayouts    = &vlk_dsl,
   };
   _(vkCreatePipelineLayout(vlk_dev, &pl_info, NULL, &vlk_pl));
 }
@@ -632,10 +700,15 @@ static void vlk_create() {
 
   vlk_create_render_pass();
 
+  vlk_create_sampler();
+  vlk_create_dsl();
+  vlk_create_dpool();
+  vlk_allocate_dset();
   vlk_create_pipeline_layout();
   vlk_create_pipeline();
 
   vlk_load_atlas();
+  vlk_update_dsets();
 }
 
 static void vlk_destroy() {
@@ -693,6 +766,7 @@ static void vlk_record_cmdbuf(int i) {
   vkCmdSetScissor(cb, 0, 1, &sci);
 
   vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vlk_ppl);
+  vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, vlk_pl, 0, 1, &vlk_dset, 0, NULL);
   vkCmdDraw(cb, 3, 1, 0, 0);
 
   vkCmdEndRenderPass(cb);
