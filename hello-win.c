@@ -1,6 +1,9 @@
 #include "app.h"
 
 HWND vlk_hwnd;
+void * vlk_gui_ptr;
+void vlk_create_gui(unsigned w, unsigned h);
+void vlk_copy_gui(unsigned w, unsigned h);
 
 FILE * app_open(const char * name, const char * ext) {
   char exe[MAX_PATH];
@@ -38,13 +41,10 @@ void vlk_fail(int r, const char * msg) {
 
 static HDC hdc;
 static HBITMAP hbmp;
-static void deinit_hdcs(HWND hwnd) {
+static void init_hdcs(HWND hwnd) {
   ReleaseDC(hwnd, hdc);
   DeleteDC(hdc);
   DeleteObject(hbmp);
-}
-static void init_hdcs(HWND hwnd) {
-  deinit_hdcs(hwnd);
 
   RECT rect; GetClientRect(hwnd, &rect);
 
@@ -53,6 +53,10 @@ static void init_hdcs(HWND hwnd) {
   SelectObject(hdc, hbmp);
 
   SetBkMode(hdc, TRANSPARENT);
+
+  unsigned w = rect.right - rect.left;
+  unsigned h = rect.bottom - rect.top;
+  if (vlk_gui_ptr) vlk_create_gui(w, h);
 }
 
 static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
@@ -87,17 +91,37 @@ static LRESULT window_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) 
 
       return 0;
     case WM_PAINT: {
-      if (vlk_hwnd) app_frame();
-
+      if (!vlk_hwnd) return 0;
+      
       RECT rect; GetClientRect(hwnd, &rect);
-      rect.top    += 100;
-      rect.left   += 100;
-      rect.bottom -= 100;
-      rect.right  -= 100;
 
       HBRUSH bru = CreateSolidBrush(RGB(200, 12, 14));
-      FillRect(hdc, &rect, bru);
+      RECT r = rect;
+      r.top    += 100;
+      r.left   += 100;
+      r.bottom -= 100;
+      r.right  -= 100;
+      FillRect(hdc, &r, bru);
       DeleteObject(bru);
+
+      unsigned w = rect.right - rect.left;
+      unsigned h = rect.bottom - rect.top;
+      BITMAPINFO bi = {
+        .bmiHeader = {
+          .biSize        = sizeof(BITMAPINFOHEADER),
+          .biWidth       = w,
+          .biHeight      = h,
+          .biPlanes      = 1,
+          .biBitCount    = 24,
+          .biCompression = BI_RGB,
+        },
+      };
+      GetDIBits(hdc, hbmp, 0, h, vlk_gui_ptr, &bi, DIB_RGB_COLORS);
+
+      if (!vlk_gui_ptr) vlk_create_gui(w, h);
+
+      vlk_copy_gui(w, h);
+      app_frame();
       return 0;
     }
   }

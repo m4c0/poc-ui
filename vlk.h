@@ -21,9 +21,19 @@ static VkSurfaceKHR       vlk_surf;
 static unsigned           vlk_qf;
 static unsigned           vlk_swc_count;
 
+static VkBuffer       vlk_atlas_h_buf;
+static VkDeviceMemory vlk_atlas_h_mem;
 static VkDeviceMemory vlk_atlas_mem;
 static VkImage        vlk_atlas_img;
 static VkImageView    vlk_atlas_iv;
+
+static VkBuffer       vlk_gui_h_buf;
+static VkDeviceMemory vlk_gui_h_mem;
+static VkDeviceMemory vlk_gui_mem;
+static VkImage        vlk_gui_img;
+static VkImageView    vlk_gui_iv;
+
+extern void * vlk_gui_ptr;
 
 static VkDescriptorPool      vlk_dpool;
 static VkDescriptorSetLayout vlk_dsl;
@@ -536,15 +546,32 @@ static void vlk_load_atlas() {
   vlk_atlas_mem = vlk_allocate_image_memory(vlk_atlas_img);
   vlk_atlas_iv  = vlk_create_image_view(vlk_atlas_img, VK_FORMAT_R8_UNORM);
 
-  VkBuffer buf = vlk_create_buffer_for_image(96 * 96);
-  VkDeviceMemory mem = vlk_allocate_memory(96 * 96, vlk_find_host_memory());
-  _(vkBindBufferMemory(vlk_dev, buf, mem, 0));
+  vlk_atlas_h_buf = vlk_create_buffer_for_image(96 * 96);
+  vlk_atlas_h_mem = vlk_allocate_memory(96 * 96, vlk_find_host_memory());
+  _(vkBindBufferMemory(vlk_dev, vlk_atlas_h_buf, vlk_atlas_h_mem, 0));
 
-  vlk_copy_buf2img(buf, vlk_atlas_img, 96, 96);
+  vlk_copy_buf2img(vlk_atlas_h_buf, vlk_atlas_img, 96, 96);
+}
 
-  vkDeviceWaitIdle(vlk_dev);
-  vkDestroyBuffer(vlk_dev, buf, NULL);
-  vkFreeMemory(vlk_dev, mem, NULL);
+void vlk_create_gui(unsigned w, unsigned h) {
+  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
+  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
+  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
+
+  vlk_gui_img = vlk_create_image(w, h, VK_FORMAT_R8G8B8_UINT, 0);
+  vlk_gui_mem = vlk_allocate_image_memory(vlk_gui_img);
+  vlk_gui_iv  = vlk_create_image_view(vlk_gui_img, VK_FORMAT_R8G8B8_UINT);
+
+  vlk_gui_h_buf = vlk_create_buffer_for_image(w * h * 3);
+  vlk_gui_h_mem = vlk_allocate_memory(w * h * 3, vlk_find_host_memory());
+  _(vkBindBufferMemory(vlk_dev, vlk_gui_h_buf, vlk_gui_h_mem, 0));
+
+  _(vkMapMemory(vlk_dev, vlk_gui_h_mem, 0, VK_WHOLE_SIZE, 0, &vlk_gui_ptr));
+}
+void vlk_copy_gui(unsigned w, unsigned h) {
+  vlk_copy_buf2img(vlk_gui_h_buf, vlk_gui_img, w, h);
 }
 
 static void vlk_create_dsl() {
@@ -721,9 +748,17 @@ static void vlk_destroy() {
     vkDestroySemaphore(vlk_dev, vlk_sema_present[i], NULL);
   }
 
-  vkDestroyImageView(vlk_dev, vlk_atlas_iv,  NULL);
-  vkDestroyImage    (vlk_dev, vlk_atlas_img, NULL);
-  vkFreeMemory      (vlk_dev, vlk_atlas_mem, NULL);
+  vkDestroyBuffer    (vlk_dev, vlk_atlas_h_buf, NULL);
+  vkFreeMemory       (vlk_dev, vlk_atlas_h_mem, NULL);
+  vkDestroyImageView (vlk_dev, vlk_atlas_iv,    NULL);
+  vkDestroyImage     (vlk_dev, vlk_atlas_img,   NULL);
+  vkFreeMemory       (vlk_dev, vlk_atlas_mem,   NULL);
+
+  vkDestroyBuffer    (vlk_dev, vlk_gui_h_buf, NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_h_mem, NULL);
+  vkDestroyImageView (vlk_dev, vlk_gui_iv,    NULL);
+  vkDestroyImage     (vlk_dev, vlk_gui_img,   NULL);
+  vkFreeMemory       (vlk_dev, vlk_gui_mem,   NULL);
 
   vkDestroyCommandPool(vlk_dev, vlk_cpool, NULL);
   vkDestroyRenderPass(vlk_dev, vlk_rp, NULL);
